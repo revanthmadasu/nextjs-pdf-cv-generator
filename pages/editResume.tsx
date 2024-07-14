@@ -130,7 +130,8 @@ const EditResume: NextPage = () => {
 
   const downloadResume = async (fileName: string, resumeData: ResumeData) => {
     let downloadApi;
-    if (process?.env?.NODE_ENV === 'development') {
+    console.log(`env: ${process?.env?.NODE_ENV}`)
+    if (process?.env?.NODE_ENV === 'production') {
       const html = `
       <!doctype html>
         <html lang="en">
@@ -215,6 +216,19 @@ const EditResume: NextPage = () => {
   const onFileUploadClick = useCallback(() => {
     if (fileInputRef && fileInputRef.current)
     fileInputRef.current.click();
+  }, []);
+
+  const onFileDownloadClick = useCallback((resumeData: ResumeData) => {
+    const resumeDataStr = JSON.stringify(resumeData, null, "\t");
+    const blob = new Blob([resumeDataStr], { type: "application/json" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    if (resumeData.personal.name) {
+      a.download = resumeData.personal.name.replace(" ", "_") + '_resume_data';
+    }
+    a.click();
+    window.URL.revokeObjectURL(url);
   }, []);
 
   const handleSkillsetChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -348,12 +362,12 @@ const handleEducationChange = (e: React.ChangeEvent<HTMLInputElement>, index: nu
         <div className="flex h-full">
           <div className="flex-none w-96 h-full overflow-auto resume-data-input">
             <div className="bg-gray-900 text-white p-8 rounded-lg shadow-lg">
-              <h1 className="text-3xl font-bold mb-4">Resume Form</h1>
+              <h1 className="text-3xl font-bold mb-4">Resume Data</h1>
 
               <span className="flex flex-row place-content-between mt-4 mb-2">
-                <span className="text-2xl">
+                {/* <span className="text-2xl">
                   Personal Data
-                </span>
+                </span> */}
                 <button className="bg-orange-500 p-2 rounded" onClick={onFileUploadClick}>
                   <input type="file" ref={fileInputRef} className='hidden' onChange={onImportData}/>
                   <span className="flex flex-row">
@@ -362,6 +376,16 @@ const handleEducationChange = (e: React.ChangeEvent<HTMLInputElement>, index: nu
                     </svg>
                     <span className='pl-1'>
                       Import
+                    </span>
+                  </span>
+                </button>
+                <button className="bg-blue-500 p-2 rounded" onClick={() => onFileDownloadClick(resumeData)}>
+                  <span className="flex flex-row">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    <span className='pl-1'>
+                      Export
                     </span>
                   </span>
                 </button>
@@ -609,9 +633,6 @@ const handleEducationChange = (e: React.ChangeEvent<HTMLInputElement>, index: nu
               >
                   Add Education
               </button>
-            </div>
-            <div>
-                {resumeDataJsonStr}
             </div>
           </div>
           <div className="resume flex-auto h-full overflow-auto">
