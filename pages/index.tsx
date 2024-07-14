@@ -1,6 +1,5 @@
 import type { NextPage } from 'next';
-import { CV } from '../components/CV_template';
-import { CV1 } from '../components/CV'
+import { CV1 } from '../components/CV';
 import { data } from '../data/cv_data';
 
 const Home: NextPage = () => {

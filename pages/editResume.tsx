@@ -3,7 +3,7 @@ import React, { useCallback, useMemo, useState, useRef } from 'react';
 import { PersonalData, ResumeData } from '../types/cv_types';
 import { CV1 } from '../components/CV';
 import DescriptionTextBox from '../components/DescriptionTextBox';
-import { renderToStaticMarkup } from 'react-dom/server';
+import ReactDOMServer, { renderToStaticMarkup } from 'react-dom/server';
 
 
 const EditResume: NextPage = () => {
@@ -129,28 +129,79 @@ const EditResume: NextPage = () => {
   }, []);
 
   const downloadResume = async (fileName: string, resumeData: ResumeData) => {
-    fetch('/api/cv', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({'resumeData': resumeData, 'fileName': 'revanth_madasu.pdf'})
-    }).then((res: Response) => {
-      if (res && res.status === 200) {
-        console.log('data received');
-        res.blob().then(blob => {
-          console.log('blob received');
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = fileName; 
-          a.click();
-          window.URL.revokeObjectURL(url);
+    let downloadApi;
+    if (process?.env?.NODE_ENV === 'development') {
+      const html = `
+      <!doctype html>
+        <html lang="en">
+          <head>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+            <title>Revanth Madasu - CV</title>
+            <link rel="stylesheet" href="http://localhost:3000/build.css" />
+            <script src="https://cdn.tailwindcss.com"></script>
+            <style>
+                html,
+                body {
+                  padding: 0;
+                  margin: 0;
+                  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+                    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+                }
+  
+                a {
+                  color: inherit;
+                  text-decoration: none;
+                }
+  
+                * {
+                  box-sizing: border-box;
+                }
+  
+                @tailwind base;
+                @tailwind components;
+                @tailwind utilities;
+            </style>
+          </head>
+          <body style="padding: 40px 60px;">
+            ${ReactDOMServer.renderToStaticMarkup(CV1(resumeData))}
+          </body>
+        </html>`;
+      const apiKey = 'sk_ce65d48fcef67ad968917457379a20977018752d';
+      downloadApi = fetch('https://api.pdfshift.io/v3/convert/pdf', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Basic ' + Buffer.from(`api:${apiKey}`).toString('base64'),
+          'Content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          source: html,
+          landscape: false,
+          use_print: false,
+          zoom: 0.85
         })
-      } else {
-        console.error('improper data received');
-        console.error(res);
-      }
+      });
+    } else {
+      downloadApi = fetch('/api/cv', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({'resumeData': resumeData, 'fileName': 'revanth_madasu.pdf'})
+      });
+    }
+
+    downloadApi.then(res => {
+      console.log('data received');
+      res.blob().then(blob => {
+        console.log('blob received');
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName; 
+        a.click();
+        window.URL.revokeObjectURL(url);
+      })
     }).catch((err) => {
       console.error('error received');
       console.error(err);
