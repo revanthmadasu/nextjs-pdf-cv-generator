@@ -145,7 +145,7 @@ const EditResume: NextPage = () => {
   const [downloadLoading, setDownloadLoading] = useState(false);
 
   const downloadResume = async (resumeData: ResumeData) => {
-    let fileName = resumeData.personal.name ? (resumeData.personal.name.replaceAll(' ', '_') + 'resume_data') : 'untitled';
+    let fileName = resumeData.personal.name ? (resumeData.personal.name.replaceAll(' ', '_')) : 'untitled';
     let downloadApi;
     console.log(`env: ${process?.env?.NODE_ENV}`)
     if (process?.env?.NODE_ENV === 'production') {
