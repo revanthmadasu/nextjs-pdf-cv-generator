@@ -1,9 +1,11 @@
 import type { NextPage } from 'next';
-import React, { useCallback, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { PersonalData, ResumeData } from '../types/cv_types';
 import { CV1 } from '../components/CV';
 import DescriptionTextBox from '../components/DescriptionTextBox';
 import ReactDOMServer, { renderToStaticMarkup } from 'react-dom/server';
+import { PdfShiftApiKey } from '../constants/keys';
+import Modal from '../components/modal';
 
 
 const EditResume: NextPage = () => {
@@ -128,7 +130,22 @@ const EditResume: NextPage = () => {
     }
   }, []);
 
-  const downloadResume = async (fileName: string, resumeData: ResumeData) => {
+  const [apiKey, setApiKey] = useState('');
+  const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedApiKey = localStorage.getItem('apiKey');
+      if (storedApiKey) {
+          setApiKey(storedApiKey);
+      }
+    }
+  }, []);
+
+  const [downloadLoading, setDownloadLoading] = useState(false);
+
+  const downloadResume = async (resumeData: ResumeData) => {
+    let fileName = resumeData.personal.name ? (resumeData.personal.name.replaceAll(' ', '_') + 'resume_data') : 'untitled';
     let downloadApi;
     console.log(`env: ${process?.env?.NODE_ENV}`)
     if (process?.env?.NODE_ENV === 'production') {
@@ -168,7 +185,6 @@ const EditResume: NextPage = () => {
             ${ReactDOMServer.renderToStaticMarkup(CV1(resumeData))}
           </body>
         </html>`;
-      const apiKey = 'sk_ce65d48fcef67ad968917457379a20977018752d';
       downloadApi = fetch('https://api.pdfshift.io/v3/convert/pdf', {
         method: 'POST',
         headers: {
@@ -188,10 +204,10 @@ const EditResume: NextPage = () => {
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({'resumeData': resumeData, 'fileName': 'revanth_madasu.pdf'})
+        body: JSON.stringify({'resumeData': resumeData, 'fileName': `${fileName}.pdf`})
       });
     }
-
+    setDownloadLoading(true);
     downloadApi.then(res => {
       console.log('data received');
       res.blob().then(blob => {
@@ -202,16 +218,33 @@ const EditResume: NextPage = () => {
         a.download = fileName; 
         a.click();
         window.URL.revokeObjectURL(url);
+        setDownloadLoading(false);
       })
     }).catch((err) => {
+      setDownloadLoading(false);
       console.error('error received');
       console.error(err);
     });
   };
 
   const onResumeDownloadClick = useCallback(() => {
-    downloadResume('revanth_madasu.pdf', resumeData);
-  }, [downloadResume]);
+    if (process?.env?.NODE_ENV === 'production' && !apiKey) {
+      setIsApiKeyModalVisible(true);
+    } else {
+      downloadResume(resumeData);
+    }
+  }, [downloadResume, apiKey]);
+
+  const onCloseApiKeyModal = useCallback(() => {
+    setIsApiKeyModalVisible(false);
+  }, [setIsApiKeyModalVisible]);
+
+  const handleSubmitApiKey = useCallback(apiKeyRes => {
+    localStorage.setItem(PdfShiftApiKey, apiKeyRes);
+    setApiKey(apiKeyRes);
+    setIsApiKeyModalVisible(false);
+    downloadResume(resumeData);
+  }, []);
   
   const onFileUploadClick = useCallback(() => {
     if (fileInputRef && fileInputRef.current)
@@ -226,6 +259,8 @@ const EditResume: NextPage = () => {
     a.href = url;
     if (resumeData.personal.name) {
       a.download = resumeData.personal.name.replace(" ", "_") + '_resume_data';
+    } else {
+      a.download = 'untitled';
     }
     a.click();
     window.URL.revokeObjectURL(url);
@@ -644,9 +679,12 @@ const handleEducationChange = (e: React.ChangeEvent<HTMLInputElement>, index: nu
                 </span>
                 <button className="bg-blue-700 text-white p-2 rounded" onClick={onResumeDownloadClick}>
                   <span className="flex flex-row">
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                    </svg>
+                    <span className={downloadLoading ? "animate-bounce" : ""}>
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                      </svg>
+                    </span>
+                    {/* <LoaderSpinner /> */}
                     <span className='pl-1'>
                       Download Resume
                     </span>
@@ -660,6 +698,11 @@ const handleEducationChange = (e: React.ChangeEvent<HTMLInputElement>, index: nu
             </div>
           </div>
         </div>
+        <Modal
+                isVisible={isApiKeyModalVisible}
+                onClose={onCloseApiKeyModal}
+                onSubmit={handleSubmitApiKey}
+            />
       </div>
     </>
   );
