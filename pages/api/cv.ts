@@ -1,6 +1,6 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
-import puppeteer, { Browser } from 'puppeteer';
-import ReactDOMServer from 'react-dom/server';
+import puppeteer from 'puppeteer';
+import { renderToStaticMarkup } from 'react-dom/server';
 
 import { CV1 } from '../../components/CV';
 import { data } from '../../data/cv_data';
@@ -8,39 +8,91 @@ import { data } from '../../data/cv_data';
 
 const handler = async (_: NextApiRequest, res: NextApiResponse) => {
   // const args = ['--no-sandbox', '--disable-setuid-sandbox'];
+  console.log('download api called.');
   const args = ['--no-sandbox', '--disable-dev-shm-usage'];
 
   let browser;
   try {
     // browser = await puppeteer.launch({ args, pipe: true });
-    browser = await puppeteer.launch({ args, headless: true });
-    const page = await browser.newPage();
     const resumeData = _.body['resumeData'] ? _.body['resumeData'] : data;
+    const env = _.body['env'];
+    const apiKey = _.body['apiKey'];
+    console.log(`env: ${env}, apiKey: ${apiKey}`);
     const html = `
-      <!doctype html>
-        <html lang="en">
-          <head>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <title>Revanth Madasu - CV</title>
-            <link rel="stylesheet" href="http://localhost:3000/build.css" />
-          </head>
-          <body style="padding: 40px 60px;">
-            ${ReactDOMServer.renderToStaticMarkup(CV1(resumeData))}
-          </body>
-        </html>`;
-    await page.setContent(html);
-    const pdf = await page.pdf({
-      scale: 0.85,
-      pageRanges: '1-2',
-    });
-    if (_.query['download']) {
-        const fileName = _.query['fileName'] || 'revanth_madasu.pdf';
-        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+    <!doctype html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Revanth Madasu - CV</title>
+    <link rel="stylesheet" href="http://localhost:3000/build.css" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+    html,
+    body {
+      padding: 0;
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+      Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
     }
-    res.setHeader('Content-Type', 'application/pdf');
-    res.send(pdf);
-    // res.status(200).json({ name: 'John Doe' })
+    
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
+    @tailwind base;
+    @tailwind components;
+    @tailwind utilities;
+    </style>
+    </head>
+    <body style="padding: 40px 60px;">
+    ${renderToStaticMarkup(CV1(resumeData))}
+    </body>
+    </html>`;
+    if (env === 'production') {
+      const pdfShiftRes = await fetch('https://api.pdfshift.io/v3/convert/pdf', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Basic ' + Buffer.from(`api:${apiKey}`).toString('base64'),
+          'Content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          source: html,
+          landscape: false,
+          use_print: false,
+          zoom: 0.85
+        })
+      })
+      if (!pdfShiftRes.ok) {
+        const errorData = await pdfShiftRes.json();
+        res.status(pdfShiftRes.status).json({ error: errorData });
+      } else {
+        const aryBuffer = await pdfShiftRes.arrayBuffer();
+        const buffer = Buffer.from(aryBuffer);
+        res.setHeader('Content-Type', 'application/pdf');
+        res.send(buffer);
+      }
+    } 
+    else {
+      browser = await puppeteer.launch({ args, headless: true });
+      const page = await browser.newPage();
+      await page.setContent(html);
+      const pdf = await page.pdf({
+        scale: 0.85,
+        pageRanges: '1-2',
+      });
+      if (_.query['download']) {
+          const fileName = _.body['fileName'] || 'revanth_madasu.pdf';
+          res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+      }
+      res.setHeader('Content-Type', 'application/pdf');
+      res.send(pdf);
+    }
   } catch (err) {
     const e = err as Error;
     console.log(`Error: ${e?.message}`);
@@ -48,7 +100,7 @@ const handler = async (_: NextApiRequest, res: NextApiResponse) => {
     return res.json({ error: e?.message });
   } finally {
     if (browser) await browser.close();
-    console.log('closed');
+    console.log('exiting from download api');
   }
 };
 

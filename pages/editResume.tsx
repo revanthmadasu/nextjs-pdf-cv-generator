@@ -3,7 +3,6 @@ import React, { useCallback, useMemo, useState, useRef, useEffect, useReducer, u
 import { PersonalData, ResumeData } from '../types/cv_types';
 import { CV1 } from '../components/CV';
 import DescriptionTextBox from '../components/DescriptionTextBox';
-import { renderToStaticMarkup } from 'react-dom/server';
 import { PdfShiftApiKey } from '../constants/keys';
 import Modal from '../components/modal';
 import { ToastContext } from '../contexts/ToastContext';
@@ -13,6 +12,7 @@ import { EmptyData, data } from '../data/cv_data';
 
 const EditResume: NextPage = () => {
   const env = process?.env?.NODE_ENV;
+  // const env = "production";
   const {addToast} = useContext(ToastContext);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [personalData, setPersonalData] = useState<PersonalData>({
@@ -148,69 +148,21 @@ const EditResume: NextPage = () => {
     let fileName = resumeData.personal.name ? (resumeData.personal.name.replaceAll(' ', '_')) : 'untitled';
     let downloadApi;
     console.log(`env: ${env}`)
-    if (env === 'production') {
-      const html = `
-      <!doctype html>
-      <html lang="en">
-      <head>
-      <meta charset="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>Revanth Madasu - CV</title>
-      <link rel="stylesheet" href="http://localhost:3000/build.css" />
-      <script src="https://cdn.tailwindcss.com"></script>
-      <style>
-      html,
-      body {
-        padding: 0;
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-        Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-      }
-      
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-      
-      * {
-        box-sizing: border-box;
-      }
-      
-      @tailwind base;
-      @tailwind components;
-      @tailwind utilities;
-      </style>
-      </head>
-      <body style="padding: 40px 60px;">
-      ${renderToStaticMarkup(CV1(resumeData))}
-      </body>
-      </html>`;
-      downloadApi = fetch('https://api.pdfshift.io/v3/convert/pdf', {
-        method: 'POST',
-        headers: {
-          Authorization: 'Basic ' + Buffer.from(`api:${apiKey}`).toString('base64'),
-          'Content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          source: html,
-          landscape: false,
-          use_print: false,
-          zoom: 0.85
-        })
-      });
-    } else {
-      downloadApi = fetch('/api/cv', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({'resumeData': resumeData, 'fileName': `${fileName}.pdf`})
-      });
-    }
+
+    downloadApi = fetch('/api/cv', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({'resumeData': resumeData, 'fileName': `${fileName}.pdf`, 'apiKey': apiKey, 'env': env})
+    });
     setDownloadLoading(true);
     downloadApi.then(res => {
       console.log('data received');
-      if (!res.ok) {
+      if (res?.error) {
+        addToast(res.error, ToastType.ERROR);
+        setApiKey('');
+      } else if (!res.ok) {
         addToast(res.statusText + ". Try with a different api key", ToastType.ERROR);
         setApiKey('');
       } else {
