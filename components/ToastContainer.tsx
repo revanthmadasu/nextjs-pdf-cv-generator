@@ -3,7 +3,7 @@ import { ToastContext } from "../contexts/ToastContext"
 import ToastComponent from "./Toast";
 
 export const ToastContainer = () => {
-    const {addToast, removeToast, toasts} = useContext(ToastContext);
+    const {removeToast, toasts} = useContext(ToastContext);
     return <>
         <div className="absolute top-4 right-4">
             <div className="flex flex-col gap-3">

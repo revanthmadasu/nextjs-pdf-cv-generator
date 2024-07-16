@@ -3,15 +3,17 @@ import React, { useCallback, useMemo, useState, useRef, useEffect, useReducer, u
 import { PersonalData, ResumeData } from '../types/cv_types';
 import { CV1 } from '../components/CV';
 import DescriptionTextBox from '../components/DescriptionTextBox';
-import ReactDOMServer, { renderToStaticMarkup } from 'react-dom/server';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { PdfShiftApiKey } from '../constants/keys';
 import Modal from '../components/modal';
 import { ToastContext } from '../contexts/ToastContext';
 import { ToastType } from '../types/ToastType';
+import { EmptyData, data } from '../data/cv_data';
 
 
 const EditResume: NextPage = () => {
   const env = process?.env?.NODE_ENV;
+  const {addToast} = useContext(ToastContext);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [personalData, setPersonalData] = useState<PersonalData>({
     name: '',
@@ -101,6 +103,19 @@ const EditResume: NextPage = () => {
     }
   }, [workExperience, education]);
 
+  const loadJsonDataToResume = useCallback((resumeData: ResumeData) => {
+    console.log('Setting Resume Data');
+    if (resumeData.personal) {
+      setPersonalData(resumeData.personal);
+    }
+    if (resumeData.work_experience) {
+      setWorkExperience(resumeData.work_experience)
+    }
+    if (resumeData.education) {
+      setEducation(resumeData.education)
+    }
+  }, [setPersonalData, setWorkExperience, setEducation]);
+
   const onImportData = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e && e.target && e.target.files) {
       const selectedFile = e.target.files[0];
@@ -113,25 +128,17 @@ const EditResume: NextPage = () => {
             const fileContent = event.target?.result;
             if (fileContent) {
               const resumeObject: ResumeData = JSON.parse(fileContent as string);
-              console.log('Setting Resume Data');
-              if (resumeObject.personal) {
-                setPersonalData(resumeObject.personal);
-              }
-              if (resumeObject.work_experience) {
-                setWorkExperience(resumeObject.work_experience)
-              }
-              if (resumeObject.education) {
-                setEducation(resumeObject.education)
-              }
+              loadJsonDataToResume(resumeObject);
             }
           };
+          addToast("Resume loaded successfully.", ToastType.SUCCESS);
           reader.readAsText(selectedFile);
         } catch (error) {
           console.error('Error reading or parsing the JSON file:', error);
         }
       }
     }
-  }, []);
+  }, [loadJsonDataToResume, addToast]);
 
   const [apiKey, setApiKey] = useState('');
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
@@ -139,7 +146,6 @@ const EditResume: NextPage = () => {
   
   const [downloadLoading, setDownloadLoading] = useState(false);
 
-  const {addToast, removeToast, toasts} = useContext(ToastContext)
   
   const downloadResume = async (resumeData: ResumeData, apiKey: string) => {
     let fileName = resumeData.personal.name ? (resumeData.personal.name.replaceAll(' ', '_')) : 'untitled';
@@ -179,7 +185,7 @@ const EditResume: NextPage = () => {
       </style>
       </head>
       <body style="padding: 40px 60px;">
-      ${ReactDOMServer.renderToStaticMarkup(CV1(resumeData))}
+      ${renderToStaticMarkup(CV1(resumeData))}
       </body>
       </html>`;
       downloadApi = fetch('https://api.pdfshift.io/v3/convert/pdf', {
@@ -224,7 +230,7 @@ const EditResume: NextPage = () => {
       }
       setDownloadLoading(false);
     }).catch((err) => {
-      addToast("Error in downloading resume. See console for more details.")
+      addToast("Error in downloading resume. See console for more details.", ToastType.ERROR)
       setDownloadLoading(false);
       console.error('error received');
       console.error(err);
@@ -248,12 +254,24 @@ const EditResume: NextPage = () => {
     setIsApiKeyModalVisible(false);
     addToast("PDFShift Api key submitted", ToastType.SUCCESS);
     downloadResume(resumeData, apiKeyRes);
-  }, []);
+  }, [setApiKey]);
+
+  const onLoadSampleData = useCallback(() => {
+    loadJsonDataToResume(data);
+    addToast("Loaded Sample Data", ToastType.SUCCESS);
+    fileInputRef.current.value = '';
+  }, [loadJsonDataToResume, fileInputRef]);
+
+  const onResetClick = useCallback(() => {
+    loadJsonDataToResume(EmptyData);
+    addToast("Resume reset", ToastType.SUCCESS);
+    fileInputRef.current.value = '';
+  }, [loadJsonDataToResume, fileInputRef]);
   
   const onFileUploadClick = useCallback(() => {
     if (fileInputRef && fileInputRef.current)
     fileInputRef.current.click();
-}, []);
+}, [fileInputRef]);
 
 const onFileDownloadClick = useCallback((resumeData: ResumeData) => {
   const resumeDataStr = JSON.stringify(resumeData, null, "\t");
@@ -268,7 +286,8 @@ const onFileDownloadClick = useCallback((resumeData: ResumeData) => {
   }
   a.click();
   window.URL.revokeObjectURL(url);
-}, []);
+  addToast("Downloaded resume data. Import this json to load resume.", ToastType.SUCCESS)
+}, [addToast]);
 
 const handleSkillsetChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
   const { name, value } = e.target;
@@ -415,7 +434,14 @@ return (
                 {/* <span className="text-2xl">
                   Personal Data
                 </span> */}
-                <button className="bg-orange-500 p-2 rounded" onClick={onFileUploadClick}>
+                <button className="bg-green-500/50 p-1 rounded" onClick={onLoadSampleData}>
+                  <span className="flex flex-row">
+                    <span className='pl-1'>
+                      Sample
+                    </span>
+                  </span>
+                </button>
+                <button className="bg-orange-500/50 p-2 rounded" onClick={onFileUploadClick}>
                   <input type="file" ref={fileInputRef} className='hidden' onChange={onImportData}/>
                   <span className="flex flex-row">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
@@ -426,7 +452,7 @@ return (
                     </span>
                   </span>
                 </button>
-                <button className="bg-blue-500 p-2 rounded" onClick={() => onFileDownloadClick(resumeData)}>
+                <button className="bg-blue-500/50 p-1 rounded" onClick={() => onFileDownloadClick(resumeData)}>
                   <span className="flex flex-row">
                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -434,6 +460,17 @@ return (
                     <span className='pl-1'>
                       Export
                     </span>
+                  </span>
+                </button>
+                <button className="p-1 rounded" onClick={onResetClick}>
+                  <span className="flex flex-row">
+                    <svg width="28px" height="28px" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg">
+                      <g fill="none" fillRule="evenodd" stroke="#ffffff" strokeLinecap="round" strokeLinejoin="round" transform="matrix(0 1 1 0 2.5 2.5)">
+                        <path d="m13 11 3 3v-6c0-3.36502327-2.0776-6.24479706-5.0200433-7.42656457-.9209869-.36989409-1.92670197-.57343543-2.9799567-.57343543-4.418278 0-8 3.581722-8 8s3.581722 8 8 8c1.48966767 0 3.4724708-.3698516 5.0913668-1.5380762" transform="matrix(-1 0 0 -1 16 16)"/>
+                        <path d="m5 5 6 6"/>
+                        <path d="m11 5-6 6"/>
+                      </g>
+                    </svg>
                   </span>
                 </button>
               </span>
