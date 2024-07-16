@@ -11,6 +11,7 @@ import { ToastType } from '../types/ToastType';
 
 
 const EditResume: NextPage = () => {
+  const env = process?.env?.NODE_ENV;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [personalData, setPersonalData] = useState<PersonalData>({
     name: '',
@@ -143,8 +144,8 @@ const EditResume: NextPage = () => {
   const downloadResume = async (resumeData: ResumeData, apiKey: string) => {
     let fileName = resumeData.personal.name ? (resumeData.personal.name.replaceAll(' ', '_')) : 'untitled';
     let downloadApi;
-    console.log(`env: ${process?.env?.NODE_ENV}`)
-    if (process?.env?.NODE_ENV === 'production') {
+    console.log(`env: ${env}`)
+    if (env === 'production') {
       const html = `
       <!doctype html>
       <html lang="en">
@@ -205,11 +206,11 @@ const EditResume: NextPage = () => {
     }
     setDownloadLoading(true);
     downloadApi.then(res => {
-      if (res?.error) {
-          addToast(res.error, ToastType.ERROR);
-          setDownloadLoading(false);
+      console.log('data received');
+      if (!res.ok) {
+        addToast(res.statusText + ". Try with a different api key", ToastType.ERROR);
+        setApiKey('');
       } else {
-        console.log('data received');
         res.blob().then(blob => {
           console.log('blob received');
           const url = window.URL.createObjectURL(blob);
@@ -218,10 +219,12 @@ const EditResume: NextPage = () => {
           a.download = fileName; 
           a.click();
           window.URL.revokeObjectURL(url);
-          setDownloadLoading(false);
-        })
+        });
+        localStorage.setItem(PdfShiftApiKey, apiKey);
       }
+      setDownloadLoading(false);
     }).catch((err) => {
+      addToast("Error in downloading resume. See console for more details.")
       setDownloadLoading(false);
       console.error('error received');
       console.error(err);
@@ -229,7 +232,7 @@ const EditResume: NextPage = () => {
   };
   
   const onResumeDownloadClick = useCallback(() => {
-    if (process?.env?.NODE_ENV === 'production' && !apiKey) {
+    if (env === 'production' && !apiKey) {
       setIsApiKeyModalVisible(true);
     } else {
       downloadResume(resumeData, apiKey);
@@ -241,7 +244,6 @@ const EditResume: NextPage = () => {
   }, [setIsApiKeyModalVisible]);
   
   const handleSubmitApiKey = useCallback(apiKeyRes => {
-    localStorage.setItem(PdfShiftApiKey, apiKeyRes);
     setApiKey(apiKeyRes);
     setIsApiKeyModalVisible(false);
     addToast("PDFShift Api key submitted", ToastType.SUCCESS);

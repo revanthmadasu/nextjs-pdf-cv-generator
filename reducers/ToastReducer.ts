@@ -9,8 +9,11 @@ import {Toast, ToastType} from "../types/ToastType"
 export const ToastReducer = (state: Toast[], action: Toast) => {
     switch(action.type) {
         case ToastType.ERROR:
+        case ToastType.SUCCESS:
             return [...state, {...action}];
         case ToastType.REMOVE:
             return state.filter(toast => toast.id !== action.id);
+        default:
+            return [...state];
     }
 }

@@ -8,7 +8,9 @@ export const ToastContainer = () => {
         <div className="absolute top-4 right-4">
             <div className="flex flex-col gap-3">
                 {toasts.map(toast => {
-                    return <ToastComponent removeToast={removeToast} toast={toast}/>
+                    return <div key={toast.id}>
+                        <ToastComponent removeToast={removeToast} toast={toast}/>
+                    </div>
                 })}
             </div>
         </div>
