@@ -1,11 +1,11 @@
 import type { NextPage } from 'next';
-import { CV1 } from '../components/CV';
-import { data } from '../data/cv_data';
+import EditResume from './editResume';
 
 const Home: NextPage = () => {
   return (
-    <div className="mt-8 md:mt-20 max-w-4xl mx-auto px-6 md:px-10">
-      <CV1 {...data}/>
+    <div>
+      {/* <CV1 {...data}/> */}
+      <EditResume />
     </div>
   );
 };
