@@ -1,11 +1,13 @@
 import type { NextPage } from 'next';
-import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useRef, useEffect, useReducer, useContext } from 'react';
 import { PersonalData, ResumeData } from '../types/cv_types';
 import { CV1 } from '../components/CV';
 import DescriptionTextBox from '../components/DescriptionTextBox';
 import ReactDOMServer, { renderToStaticMarkup } from 'react-dom/server';
 import { PdfShiftApiKey } from '../constants/keys';
 import Modal from '../components/modal';
+import { ToastContext } from '../contexts/ToastContext';
+import { ToastType } from '../types/ToastType';
 
 
 const EditResume: NextPage = () => {
@@ -133,58 +135,52 @@ const EditResume: NextPage = () => {
   const [apiKey, setApiKey] = useState('');
   const [isApiKeyModalVisible, setIsApiKeyModalVisible] = useState(false);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedApiKey = localStorage.getItem('apiKey');
-      if (storedApiKey) {
-          setApiKey(storedApiKey);
-      }
-    }
-  }, []);
-
+  
   const [downloadLoading, setDownloadLoading] = useState(false);
 
-  const downloadResume = async (resumeData: ResumeData) => {
+  const {addToast, removeToast, toasts} = useContext(ToastContext)
+  
+  const downloadResume = async (resumeData: ResumeData, apiKey: string) => {
     let fileName = resumeData.personal.name ? (resumeData.personal.name.replaceAll(' ', '_')) : 'untitled';
     let downloadApi;
     console.log(`env: ${process?.env?.NODE_ENV}`)
     if (process?.env?.NODE_ENV === 'production') {
       const html = `
       <!doctype html>
-        <html lang="en">
-          <head>
-            <meta charset="utf-8" />
-            <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-            <title>Revanth Madasu - CV</title>
-            <link rel="stylesheet" href="http://localhost:3000/build.css" />
-            <script src="https://cdn.tailwindcss.com"></script>
-            <style>
-                html,
-                body {
-                  padding: 0;
-                  margin: 0;
-                  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-                    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-                }
-  
-                a {
-                  color: inherit;
-                  text-decoration: none;
-                }
-  
-                * {
-                  box-sizing: border-box;
-                }
-  
-                @tailwind base;
-                @tailwind components;
-                @tailwind utilities;
-            </style>
-          </head>
-          <body style="padding: 40px 60px;">
-            ${ReactDOMServer.renderToStaticMarkup(CV1(resumeData))}
-          </body>
-        </html>`;
+      <html lang="en">
+      <head>
+      <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Revanth Madasu - CV</title>
+      <link rel="stylesheet" href="http://localhost:3000/build.css" />
+      <script src="https://cdn.tailwindcss.com"></script>
+      <style>
+      html,
+      body {
+        padding: 0;
+        margin: 0;
+        font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
+        Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+      }
+      
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+      
+      * {
+        box-sizing: border-box;
+      }
+      
+      @tailwind base;
+      @tailwind components;
+      @tailwind utilities;
+      </style>
+      </head>
+      <body style="padding: 40px 60px;">
+      ${ReactDOMServer.renderToStaticMarkup(CV1(resumeData))}
+      </body>
+      </html>`;
       downloadApi = fetch('https://api.pdfshift.io/v3/convert/pdf', {
         method: 'POST',
         headers: {
@@ -209,190 +205,204 @@ const EditResume: NextPage = () => {
     }
     setDownloadLoading(true);
     downloadApi.then(res => {
-      console.log('data received');
-      res.blob().then(blob => {
-        console.log('blob received');
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = fileName; 
-        a.click();
-        window.URL.revokeObjectURL(url);
-        setDownloadLoading(false);
-      })
+      if (res?.error) {
+          addToast(res.error, ToastType.ERROR);
+          setDownloadLoading(false);
+      } else {
+        console.log('data received');
+        res.blob().then(blob => {
+          console.log('blob received');
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = fileName; 
+          a.click();
+          window.URL.revokeObjectURL(url);
+          setDownloadLoading(false);
+        })
+      }
     }).catch((err) => {
       setDownloadLoading(false);
       console.error('error received');
       console.error(err);
     });
   };
-
+  
   const onResumeDownloadClick = useCallback(() => {
     if (process?.env?.NODE_ENV === 'production' && !apiKey) {
       setIsApiKeyModalVisible(true);
     } else {
-      downloadResume(resumeData);
+      downloadResume(resumeData, apiKey);
     }
   }, [downloadResume, apiKey]);
-
+  
   const onCloseApiKeyModal = useCallback(() => {
     setIsApiKeyModalVisible(false);
   }, [setIsApiKeyModalVisible]);
-
+  
   const handleSubmitApiKey = useCallback(apiKeyRes => {
     localStorage.setItem(PdfShiftApiKey, apiKeyRes);
     setApiKey(apiKeyRes);
     setIsApiKeyModalVisible(false);
-    downloadResume(resumeData);
+    addToast("PDFShift Api key submitted", ToastType.SUCCESS);
+    downloadResume(resumeData, apiKeyRes);
   }, []);
   
   const onFileUploadClick = useCallback(() => {
     if (fileInputRef && fileInputRef.current)
     fileInputRef.current.click();
-  }, []);
+}, []);
 
-  const onFileDownloadClick = useCallback((resumeData: ResumeData) => {
-    const resumeDataStr = JSON.stringify(resumeData, null, "\t");
-    const blob = new Blob([resumeDataStr], { type: "application/json" });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    if (resumeData.personal.name) {
-      a.download = resumeData.personal.name.replace(" ", "_") + '_resume_data';
-    } else {
-      a.download = 'untitled';
-    }
-    a.click();
-    window.URL.revokeObjectURL(url);
-  }, []);
+const onFileDownloadClick = useCallback((resumeData: ResumeData) => {
+  const resumeDataStr = JSON.stringify(resumeData, null, "\t");
+  const blob = new Blob([resumeDataStr], { type: "application/json" });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  if (resumeData.personal.name) {
+    a.download = resumeData.personal.name.replace(" ", "_") + '_resume_data';
+  } else {
+    a.download = 'untitled';
+  }
+  a.click();
+  window.URL.revokeObjectURL(url);
+}, []);
 
-  const handleSkillsetChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    const { name, value } = e.target;
-    const updatedSkillset = [...personalData.skillset];
-    updatedSkillset[index][name] = value;
-    setPersonalData({
-      ...personalData,
-      skillset: updatedSkillset,
-    });
-  };
+const handleSkillsetChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const { name, value } = e.target;
+  const updatedSkillset = [...personalData.skillset];
+  updatedSkillset[index][name] = value;
+  setPersonalData({
+    ...personalData,
+    skillset: updatedSkillset,
+  });
+};
 
-  const handleSkillChange = (e: React.ChangeEvent<HTMLInputElement>, skillSetIndex: number, skillIndex: number) => {
-    const { name, value } = e.target;
-    personalData.skillset[skillSetIndex].skills[skillIndex][name] = value;
-    setPersonalData({
-        ...personalData,
-    });
-  };
+const handleSkillChange = (e: React.ChangeEvent<HTMLInputElement>, skillSetIndex: number, skillIndex: number) => {
+  const { name, value } = e.target;
+  personalData.skillset[skillSetIndex].skills[skillIndex][name] = value;
+  setPersonalData({
+    ...personalData,
+  });
+};
 
-  const addSkill = (index: number) => {
-    const updatedSkillset = [...personalData.skillset];
-    updatedSkillset[index].skills.push({ skill: '', level: '' });
-    setPersonalData({
-      ...personalData,
-      skillset: updatedSkillset,
-    });
-  };
+const addSkill = (index: number) => {
+  const updatedSkillset = [...personalData.skillset];
+  updatedSkillset[index].skills.push({ skill: '', level: '' });
+  setPersonalData({
+    ...personalData,
+    skillset: updatedSkillset,
+  });
+};
 
-  const deleteSkill = (skillsetIndex: number, skillIndex: number) => {
-    const updatedSkillset = [...personalData.skillset];
-    updatedSkillset[skillsetIndex].skills.splice(skillIndex, 1);
-    setPersonalData({
-      ...personalData,
-      skillset: updatedSkillset,
-    });
-  };
+const deleteSkill = (skillsetIndex: number, skillIndex: number) => {
+  const updatedSkillset = [...personalData.skillset];
+  updatedSkillset[skillsetIndex].skills.splice(skillIndex, 1);
+  setPersonalData({
+    ...personalData,
+    skillset: updatedSkillset,
+  });
+};
 
-  const addSkillset = () => {
-    setPersonalData({
-      ...personalData,
-      skillset: [...personalData.skillset, newSkillset],
-    });
-    setNewSkillset({
-      type: '',
-      label: '',
-      skills: [{ skill: '', level: '' }],
-    });
-  };
+const addSkillset = () => {
+  setPersonalData({
+    ...personalData,
+    skillset: [...personalData.skillset, newSkillset],
+  });
+  setNewSkillset({
+    type: '',
+    label: '',
+    skills: [{ skill: '', level: '' }],
+  });
+};
 
-  const deleteSkillset = (index: number) => {
-    const updatedSkillset = [...personalData.skillset];
-    updatedSkillset.splice(index, 1);
-    setPersonalData({
-      ...personalData,
-      skillset: updatedSkillset,
-    });
-  };
+const deleteSkillset = (index: number) => {
+  const updatedSkillset = [...personalData.skillset];
+  updatedSkillset.splice(index, 1);
+  setPersonalData({
+    ...personalData,
+    skillset: updatedSkillset,
+  });
+};
 
-  const handleWorkExperienceChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    const { name, value } = e.target;
-    const updatedWorkExperience = [...workExperience];
-    updatedWorkExperience[index][name] = value;
-    setWorkExperience(updatedWorkExperience);
-  };
+const handleWorkExperienceChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
+  const { name, value } = e.target;
+  const updatedWorkExperience = [...workExperience];
+  updatedWorkExperience[index][name] = value;
+  setWorkExperience(updatedWorkExperience);
+};
 
-  const handleWorkExperienceDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>, experienceIndex: number, descIndex: number) => {
-    const { value } = e.target;
-    const updatedWorkExperience = [...workExperience];
-    updatedWorkExperience[experienceIndex].description[descIndex] = value;
-    setWorkExperience(updatedWorkExperience);
-  };
+const handleWorkExperienceDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>, experienceIndex: number, descIndex: number) => {
+  const { value } = e.target;
+  const updatedWorkExperience = [...workExperience];
+  updatedWorkExperience[experienceIndex].description[descIndex] = value;
+  setWorkExperience(updatedWorkExperience);
+};
 
-  const addWorkExperience = () => {
-    setWorkExperience([...workExperience, {
-      company: '',
-      position: '',
-      url: '',
-      location: '',
-      start: '',
-      end: '',
-      description: [''],
+const addWorkExperience = () => {
+  setWorkExperience([...workExperience, {
+    company: '',
+    position: '',
+    url: '',
+    location: '',
+    start: '',
+    end: '',
+    description: [''],
   }]);
-  };
+};
 
-  const deleteWorkExperience = (index: number) => {
-    const updatedWorkExperience = [...workExperience];
-    updatedWorkExperience.splice(index, 1);
-    setWorkExperience(updatedWorkExperience);
-  };
+const deleteWorkExperience = (index: number) => {
+  const updatedWorkExperience = [...workExperience];
+  updatedWorkExperience.splice(index, 1);
+  setWorkExperience(updatedWorkExperience);
+};
 
 // Method to handle changes in education fields
 const handleEducationChange = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    const { name, value } = e.target;
-    const updatedEducation = [...education];
-    updatedEducation[index][name] = value;
-    setEducation(updatedEducation);
-  };
-  
-  // Method to handle changes in education description fields
-  const handleEducationDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>, eduIndex: number, descIndex: number) => {
-    const { value } = e.target;
-    const updatedEducation = [...education];
-    updatedEducation[eduIndex].description[descIndex] = value;
-    setEducation(updatedEducation);
-  };
-  
-  // Method to add a new education entry
-  const addEducation = () => {
-    setEducation([...education, {
-      degree: '',
-      university: '',
-      url: '',
-      location: '',
-      start: '',
-      end: '',
-      description: [''],
-  }]);
-  };
-  
-  // Method to delete an education entry
-  const deleteEducation = (index: number) => {
-    const updatedEducation = [...education];
-    updatedEducation.splice(index, 1);
-    setEducation(updatedEducation);
-  };
+  const { name, value } = e.target;
+  const updatedEducation = [...education];
+  updatedEducation[index][name] = value;
+  setEducation(updatedEducation);
+};
 
-  return (
-    <>
+// Method to handle changes in education description fields
+const handleEducationDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>, eduIndex: number, descIndex: number) => {
+  const { value } = e.target;
+  const updatedEducation = [...education];
+  updatedEducation[eduIndex].description[descIndex] = value;
+  setEducation(updatedEducation);
+};
+
+// Method to add a new education entry
+const addEducation = () => {
+  setEducation([...education, {
+    degree: '',
+    university: '',
+    url: '',
+    location: '',
+    start: '',
+    end: '',
+    description: [''],
+  }]);
+};
+
+// Method to delete an education entry
+const deleteEducation = (index: number) => {
+  const updatedEducation = [...education];
+  updatedEducation.splice(index, 1);
+  setEducation(updatedEducation);
+};
+
+useEffect(() => {
+  if (typeof window !== 'undefined') {
+    const storedApiKey = localStorage.getItem('apiKey');
+    if (storedApiKey) {
+        setApiKey(storedApiKey);
+    }
+  }
+}, []);
+return (
+  <>
       <div className="container h-screen">
         <div className="flex h-full">
           <div className="flex-none w-96 h-full overflow-auto resume-data-input">
