@@ -61,8 +61,8 @@ export const CV1 = (data: ResumeData): JSX.Element => (
       </div>
       <ul className="flex flex-col items-end space-y-1">
         <li className="flex justify-end items-center space-x-2">
-          <a target="_blank" rel="noopener noreferrer" href={'mailto:' + data.personal.email.link}>
-            {data.personal.email.readable}
+          <a target="_blank" rel="noopener noreferrer" href={'mailto:' + data.personal.email}>
+            {data.personal.email}
           </a>
           <span className="text-red-500">{Icons.Mail()}</span>
         </li>

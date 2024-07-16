@@ -21,10 +21,7 @@ const EditResume: NextPage = () => {
       readable: '',
       link: '',
     },
-    email: {
-      readable: '',
-      link: '',
-    },
+    email: '',
     github: {
       readable: '',
       link: '',
@@ -500,22 +497,22 @@ return (
               onChange={handlePersonalDataChange}
               className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 mb-2"
               />
-              <label className="block mb-2">Email Readable:</label>
+              <label className="block mb-2">Email</label>
               <input
               type="text"
-              name="email.readable"
-              value={personalData.email.readable}
+              name="email"
+              value={personalData.email}
               onChange={handlePersonalDataChange}
               className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 mb-2"
               />
-              <label className="block mb-2">Email Link:</label>
+              {/* <label className="block mb-2">Email Link:</label>
               <input
               type="text"
               name="email.link"
               value={personalData.email.link}
               onChange={handlePersonalDataChange}
               className="w-full bg-gray-700 border border-gray-600 rounded-md p-2 mb-2"
-              />
+              /> */}
               <label className="block mb-2">GitHub Readable:</label>
               <input
               type="text"

@@ -7,10 +7,7 @@ export const data: ResumeData = {
 			"readable": "revanth-madasu913.appspot.com",
 			"link": "https://revanth-madasu913.appspot.com"
 		},
-		"email": {
-			"readable": "revanthmadasu913@gmail.com",
-			"link": "revanthmadasu913@gmail.com"
-		},
+		"email": "revanthmadasu913@gmail.com",
 		"github": {
 			"readable": "github.com/revanthmadasu",
 			"link": "https://github.com/revanthmadasu"
@@ -253,10 +250,7 @@ export const EmptyData: ResumeData = {
 			"readable": "",
 			"link": ""
 		},
-		"email": {
-			"readable": "",
-			"link": ""
-		},
+		"email": "",
 		"github": {
 			"readable": "",
 			"link": ""

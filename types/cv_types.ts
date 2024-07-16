@@ -19,7 +19,7 @@ export interface Skill {
   export interface PersonalData {
     name: string;
     website: SocialLink;
-    email: SocialLink;
+    email: string;
     github: SocialLink;
     linkedin: SocialLink;
     skillset: SkillSetCategory[];
