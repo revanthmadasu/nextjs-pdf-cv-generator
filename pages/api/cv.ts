@@ -70,12 +70,16 @@ const handler = async (_: NextApiRequest, res: NextApiResponse) => {
           zoom: 0.85
         })
       })
+      console.log('response received');
       if (!pdfShiftRes.ok) {
+        console.log('response not ok');
         const errorData = await pdfShiftRes.json();
         res.status(pdfShiftRes.status).json({ error: errorData });
       } else {
+        console.log('response ok');
         const aryBuffer = await pdfShiftRes.arrayBuffer();
         buffer = Buffer.from(aryBuffer);
+        console.log('buffer created.')
       }
     } 
     else {

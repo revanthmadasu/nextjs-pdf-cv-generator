@@ -122,7 +122,7 @@ const EditResume: NextPage = () => {
       education[index].description = descItems;
       setEducation([...education]);
     }
-  }, [workExperience, education]);
+  }, [setWorkExperience, setEducation, workExperience, education]);
 
   const loadJsonDataToResume = useCallback((loadingResumeData: ResumeData) => {
     console.log('Setting Resume Data');
@@ -208,7 +208,7 @@ const EditResume: NextPage = () => {
     } else {
       downloadResume(resumeData, apiKey);
     }
-  }, [downloadResume, apiKey]);
+  }, [downloadResume, apiKey, resumeData]);
   
   const onCloseApiKeyModal = useCallback(() => {
     setIsApiKeyModalVisible(false);
@@ -219,7 +219,7 @@ const EditResume: NextPage = () => {
     setIsApiKeyModalVisible(false);
     addToast("PDFShift Api key submitted", ToastType.SUCCESS);
     downloadResume(resumeData, apiKeyRes);
-  }, [setApiKey]);
+  }, [setApiKey, resumeData, setIsApiKeyModalVisible, addToast, downloadResume]);
 
   const onLoadSampleData = useCallback(() => {
     loadJsonDataToResume(data);
@@ -318,13 +318,6 @@ const handleWorkExperienceChange = (e: React.ChangeEvent<HTMLInputElement>, inde
   setWorkExperience(updatedWorkExperience);
 };
 
-const handleWorkExperienceDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>, experienceIndex: number, descIndex: number) => {
-  const { value } = e.target;
-  const updatedWorkExperience = [...workExperience];
-  updatedWorkExperience[experienceIndex].description[descIndex] = value;
-  setWorkExperience(updatedWorkExperience);
-};
-
 const addWorkExperience = () => {
   setWorkExperience([...workExperience, {
     company: '',
@@ -351,14 +344,6 @@ const handleEducationChange = (e: React.ChangeEvent<HTMLInputElement>, index: nu
   setEducation(updatedEducation);
 };
 
-// Method to handle changes in education description fields
-const handleEducationDescriptionChange = (e: React.ChangeEvent<HTMLTextAreaElement>, eduIndex: number, descIndex: number) => {
-  const { value } = e.target;
-  const updatedEducation = [...education];
-  updatedEducation[eduIndex].description[descIndex] = value;
-  setEducation(updatedEducation);
-};
-
 // Method to add a new education entry
 const addEducation = () => {
   setEducation([...education, {
@@ -381,14 +366,15 @@ const deleteEducation = (index: number) => {
 
 useEffect(() => {
   if (typeof window !== 'undefined') {
-    const storedApiKey = localStorage.getItem('apiKey');
+    const storedApiKey = localStorage.getItem(PdfShiftApiKey);
     if (storedApiKey) {
         setApiKey(storedApiKey);
     }
   }
 }, []);
+
 return (
-  <>
+    <>
       <div className="container h-screen">
         <div className="flex h-full">
           <div className="flex-none w-96 h-full overflow-auto resume-data-input">
@@ -712,11 +698,7 @@ return (
             </div>
           </div>
         </div>
-        <Modal
-                isVisible={isApiKeyModalVisible}
-                onClose={onCloseApiKeyModal}
-                onSubmit={handleSubmitApiKey}
-            />
+        <Modal isVisible={isApiKeyModalVisible} onClose={onCloseApiKeyModal} onSubmit={handleSubmitApiKey}/>
       </div>
     </>
   );

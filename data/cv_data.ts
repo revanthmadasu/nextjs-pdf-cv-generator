@@ -209,7 +209,7 @@ export const data: ResumeData = {
 				"<b>Led</b> UI development teams effectively with planning, architecture, API design, work assignment, coordinating with UX teams.",
 				"<b>Production support</b> responsibilities which include responsibilities like prod bug fixes, resolving system outages and primary POC.",
 				"Proven proficiency in implementing scrum, agile methodologies and adhering to the software development life cycle (SDLC) best practices, ensuring efficient project management, timely delivery, and high-quality software solutions.",
-				"Worked on customer-specific projects which need special use case implementation in strict deadlines improving customer experience. This particular project UserAccess Group bagged a 2 years contract with a customer which is developed in a very short span of two weeks",
+				"Worked on <b>customer critical projects</b> which need special use case implementation in strict deadlines improving <b>customer experience</b>.",
 				"Architected and Implemented role-based access control (RBAC) from the UI side. Different workflows for different types of users like security admin, policy admin, asset admin, view only.",
 				"<b>Technologies:</b> Angular, React, .NET, Typescript, Javascript, CSS3, Ajax, XML, Python, Cloud Technologies (Azure, AWS), GraphQL, D3, Webpack, Jasmine, HTML, Bootstrap, SCSS, Jenkins, Jira, JSON, Continuous Integration."
 			]
