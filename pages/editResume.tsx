@@ -1,6 +1,6 @@
 import type { NextPage } from 'next';
-import React, { useCallback, useMemo, useState, useRef, useEffect, useReducer, useContext } from 'react';
-import { PersonalData, ResumeData } from '../types/cv_types';
+import React, { useCallback, useMemo, useState, useRef, useEffect, useContext } from 'react';
+import { PersonalData, ResumeData, WorkExperience, Education } from '../types/cv_types';
 import { CV1 } from '../components/CV';
 import DescriptionTextBox from '../components/DescriptionTextBox';
 import { PdfShiftApiKey } from '../constants/keys';
@@ -15,66 +15,90 @@ const EditResume: NextPage = () => {
   // const env = "production";
   const {addToast} = useContext(ToastContext);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [personalData, setPersonalData] = useState<PersonalData>({
-    name: '',
-    website: {
-      readable: '',
-      link: '',
-    },
-    email: '',
-    github: {
-      readable: '',
-      link: '',
-    },
-    linkedin: {
-      readable: '',
-      link: '',
-    },
-    skillset: [],
-  });
 
-  
   const [newSkillset, setNewSkillset] = useState({
       type: '',
       label: '',
       skills: [{ skill: '', level: '' }],
   });
-    
-  const [workExperience, setWorkExperience] = useState([
-      {
-          company: '',
-          position: '',
-          url: '',
-          location: '',
-          start: '',
-          end: '',
-          description: [''],
-      },
-  ]);
-    
-    
-  const [education, setEducation] = useState([
-      {
-          degree: '',
-          university: '',
-          url: '',
-          location: '',
-          start: '',
-          end: '',
-          description: [''],
-      },
-  ]);
-    
-    
-  const resumeData = useMemo<ResumeData>(() => {
-    return {
-        "personal": personalData,
-        "work_experience": workExperience,
-        "education": education
-    }
-  }, [personalData, workExperience, education]);
 
-  const resumeDataJsonStr = useMemo(() => JSON.stringify(resumeData, null, "\t"), [resumeData]);
+  const [resumeData, setResumeData] = useState<ResumeData>({
+        personal: {
+          name: '',
+          website: {
+            readable: '',
+            link: '',
+          },
+          email: '',
+          github: {
+            readable: '',
+            link: '',
+          },
+          linkedin: {
+            readable: '',
+            link: '',
+          },
+          skillset: [],
+        },
+        work_experience: [
+          {
+              company: '',
+              position: '',
+              url: '',
+              location: '',
+              start: '',
+              end: '',
+              description: [''],
+          },
+        ],
+        education: [
+          {
+              degree: '',
+              university: '',
+              url: '',
+              location: '',
+              start: '',
+              end: '',
+              description: [''],
+          },
+        ]
+    });
+
+  const setPersonalData = useCallback((personalData: PersonalData) => {
+    setResumeData({
+      personal: personalData,
+      education: resumeData.education,
+      work_experience: resumeData.work_experience
+    });
+  }, [resumeData, setResumeData])
+
+  const personalData = useMemo(() => {
+    return resumeData.personal;
+  }, [resumeData]);
+
+  const setWorkExperience = useCallback((workExperience: WorkExperience[]) => {
+    setResumeData({
+      personal: resumeData.personal,
+      education: resumeData.education,
+      work_experience: workExperience
+    });
+  }, [resumeData, setResumeData])
+
+  const workExperience = useMemo(() => {
+    return resumeData.work_experience
+  }, [resumeData]);
+
+  const setEducation = useCallback((education: Education[]) => {
+    setResumeData({
+      personal: resumeData.personal,
+      education,
+      work_experience: resumeData.work_experience
+    });
+  }, [resumeData, setResumeData])
+
+  const education = useMemo(() => {
+    return resumeData.education
+  }, [resumeData]);
     
   const handlePersonalDataChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -100,18 +124,10 @@ const EditResume: NextPage = () => {
     }
   }, [workExperience, education]);
 
-  const loadJsonDataToResume = useCallback((resumeData: ResumeData) => {
+  const loadJsonDataToResume = useCallback((loadingResumeData: ResumeData) => {
     console.log('Setting Resume Data');
-    if (resumeData.personal) {
-      setPersonalData(resumeData.personal);
-    }
-    if (resumeData.work_experience) {
-      setWorkExperience(resumeData.work_experience)
-    }
-    if (resumeData.education) {
-      setEducation(resumeData.education)
-    }
-  }, [setPersonalData, setWorkExperience, setEducation]);
+    setResumeData({...loadingResumeData});
+  }, [setResumeData]);
 
   const onImportData = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     if (e && e.target && e.target.files) {
@@ -174,8 +190,8 @@ const EditResume: NextPage = () => {
           a.download = fileName; 
           a.click();
           window.URL.revokeObjectURL(url);
+          localStorage.setItem(PdfShiftApiKey, apiKey);
         });
-        localStorage.setItem(PdfShiftApiKey, apiKey);
       }
       setDownloadLoading(false);
     }).catch((err) => {
