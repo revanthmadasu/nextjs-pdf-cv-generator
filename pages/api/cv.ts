@@ -54,7 +54,9 @@ const handler = async (_: NextApiRequest, res: NextApiResponse) => {
     ${renderToStaticMarkup(CV1(resumeData))}
     </body>
     </html>`;
+    let buffer: Buffer;
     if (env === 'production') {
+      console.log('api in prod mode. pdf will be created from pdfshift');
       const pdfShiftRes = await fetch('https://api.pdfshift.io/v3/convert/pdf', {
         method: 'POST',
         headers: {
@@ -73,26 +75,25 @@ const handler = async (_: NextApiRequest, res: NextApiResponse) => {
         res.status(pdfShiftRes.status).json({ error: errorData });
       } else {
         const aryBuffer = await pdfShiftRes.arrayBuffer();
-        const buffer = Buffer.from(aryBuffer);
-        res.setHeader('Content-Type', 'application/pdf');
-        res.send(buffer);
+        buffer = Buffer.from(aryBuffer);
       }
     } 
     else {
+      console.log('not in prod, pdf will be created from puppeteer');
       browser = await puppeteer.launch({ args, headless: true });
       const page = await browser.newPage();
       await page.setContent(html);
-      const pdf = await page.pdf({
+      buffer = await page.pdf({
         scale: 0.85,
         pageRanges: '1-2',
       });
-      if (_.query['download']) {
-          const fileName = _.body['fileName'] || 'revanth_madasu.pdf';
-          res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
-      }
-      res.setHeader('Content-Type', 'application/pdf');
-      res.send(pdf);
     }
+    if (_.query['download']) {
+        const fileName = _.body['fileName'] || 'revanth_madasu.pdf';
+        res.setHeader('Content-Disposition', `attachment; filename=${fileName}`);
+    }
+    res.setHeader('Content-Type', 'application/pdf');
+    res.send(buffer);
   } catch (err) {
     const e = err as Error;
     console.log(`Error: ${e?.message}`);
